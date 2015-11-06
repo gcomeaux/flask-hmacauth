@@ -14,11 +14,14 @@ import hmac
 import hashlib
 import datetime
 import urlparse
+import logging
 
 #simple macros where x is a request object
 GET_TIMESTAMP = lambda x: x.values.get('TIMESTAMP')
 GET_ACCOUNT = lambda x: x.values.get('ACCOUNT_ID')
 GET_SIGNATURE = lambda x: x.headers.get('X-Auth-Signature')
+
+logger = logging.getLogger(__name__)
 
 
 class HmacManager(object):
@@ -82,12 +85,12 @@ class HmacManager(object):
         #implicitly, does this account exist?
         secret = self._account_broker.get_secret(account_id)
         if secret is None:
-            #TODO: add logging
+            logger.error("No secret found for account_id '%s'", account_id)
             return False
 
         #Is the account active, valid, etc?
         if not self._account_broker.is_active(account_id):
-            #TODO: add logging
+            logger.error("Account '%s' is not active", account_id)
             return False
 
         #hash the request URL and Body
@@ -112,8 +115,10 @@ class HmacManager(object):
             return False
 
         #compare to what we got as the sig
+        #  note: docs warn about using compare_digest() vs. '=='
+        #        unfortunately, compare_digest() new in python 2.7.7
         if not calculated_hash == sent_hash:
-            #TODO: add logging
+            logger.error("Hash mismatch ( %s != %s )", calculated_hash, sent_hash)
             return False
 
         #ensure this account has the required rights
